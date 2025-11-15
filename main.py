@@ -13,31 +13,42 @@ import requests
 load_dotenv()
 
 # ==================== CONFIG ====================
-HOST = os.getenv("CPANEL_HOST")
-PORT = int(os.getenv("CPANEL_PORT", 22))  # port implicit 22 pentru SFTP
-USER = os.getenv("CPANEL_USERNAME")
-PASSWORD = os.getenv("CPANEL_PASSWORD")
+# SFTP / cPanel
+CPANEL_HOST = os.getenv("CPANEL_HOST")
+CPANEL_PORT = int(os.getenv("CPANEL_PORT", 22))
+CPANEL_USER = os.getenv("CPANEL_USERNAME")
+CPANEL_PASSWORD = os.getenv("CPANEL_PASSWORD")
 UPLOAD_PATH = os.getenv("UPLOAD_PATH")
 SITE_URL = os.getenv("SITE_URL")
 
+# Admin / JWT
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
 JWT_EXP_MINUTES = int(os.getenv("JWT_EXP_MINUTES", 60))
 
+# Frontend / API
 GENERATED_DIR = "generated"
 os.makedirs(GENERATED_DIR, exist_ok=True)
 SITEMAP_FILE = os.path.join(GENERATED_DIR, "sitemap.xml")
 
+# Templates
 env = Environment(loader=FileSystemLoader("templates"))
+
+# ==================== APP ====================
 app = FastAPI()
 
 # ==================== CORS ====================
+origins = [
+    "http://localhost:3000",          # frontend local
+    "https://frunza-asociatii.ro",   # live frontend
+    "https://www.frunza-asociatii.ro"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://www.frunza-asociatii.ro"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -74,8 +85,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 # ==================== SFTP UPLOAD ====================
 def upload_to_cpanel(local_path, remote_filename):
-    transport = paramiko.Transport((HOST, PORT))
-    transport.connect(username=USER, password=PASSWORD)
+    transport = paramiko.Transport((CPANEL_HOST, CPANEL_PORT))
+    transport.connect(username=CPANEL_USER, password=CPANEL_PASSWORD)
     sftp = paramiko.SFTPClient.from_transport(transport)
     sftp.put(local_path, f"{UPLOAD_PATH}/{remote_filename}")
     sftp.close()
@@ -150,4 +161,5 @@ async def create_article(
 # ==================== RUN UVICORN ====================
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    PORT = int(os.getenv("PORT", 8000))  # Railway va seta PORT automat
+    uvicorn.run("main:app", host="0.0.0.0", port=PORT)
