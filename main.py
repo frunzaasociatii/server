@@ -14,7 +14,7 @@ load_dotenv()
 
 # ==================== CONFIG ====================
 HOST = os.getenv("CPANEL_HOST")
-PORT = int(os.getenv("CPANEL_PORT"))
+PORT = int(os.getenv("CPANEL_PORT", 22))  # port implicit 22 pentru SFTP
 USER = os.getenv("CPANEL_USERNAME")
 PASSWORD = os.getenv("CPANEL_PASSWORD")
 UPLOAD_PATH = os.getenv("UPLOAD_PATH")
@@ -24,7 +24,7 @@ ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
-JWT_EXP_MINUTES = int(os.getenv("JWT_EXP_MINUTES"))
+JWT_EXP_MINUTES = int(os.getenv("JWT_EXP_MINUTES", 60))
 
 GENERATED_DIR = "generated"
 os.makedirs(GENERATED_DIR, exist_ok=True)
@@ -34,11 +34,10 @@ env = Environment(loader=FileSystemLoader("templates"))
 app = FastAPI()
 
 # ==================== CORS ====================
-from fastapi.middleware.cors import CORSMiddleware
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://www.frunza-asociatii.ro"],
+    allow_origins=[
+        "https://www.frunza-asociatii.ro"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,7 +61,7 @@ def verify_jwt_token(token: str):
         return username
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.JWTError:
+    except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 # ==================== AUTH ENDPOINT ====================
@@ -106,6 +105,7 @@ def ping_google(sitemap_url: str):
     except Exception as e:
         print("Eroare la ping Google:", e)
 
+# ==================== CREATE ARTICLE ====================
 @app.post("/create-article/")
 async def create_article(
     title: str = Form(...),
@@ -147,7 +147,7 @@ async def create_article(
 
     return {"status": "ok", "file": filename, "url": file_url}
 
-# ==================== RUN Uvicorn ====================
+# ==================== RUN UVICORN ====================
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
