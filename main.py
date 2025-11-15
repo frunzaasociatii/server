@@ -41,9 +41,9 @@ app = FastAPI()
 
 # ==================== CORS ====================
 origins = [
-    "http://localhost:3000",          # frontend local
-    "https://frunza-asociatii.ro",   # live frontend
-    "https://www.frunza-asociatii.ro"
+    "http://localhost:3000",          # pentru dev local
+    "https://frunza-asociatii.ro",   # ✅ AI DEJA ASTA
+    "https://www.frunza-asociatii.ro", # ✅ AI DEJA ASTA
 ]
 
 app.add_middleware(
