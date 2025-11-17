@@ -579,8 +579,8 @@ async def create_article(
         logger.info(f"Article file created locally: {local_path}")
 
         try:
-            # 💡 MODIFICAT: Adaugă "noutati/" la calea de upload
-            upload_to_cpanel(local_path, f"noutati/{filename}")
+            # 💡 MODIFICAREA 1: Am scos "noutati/" de aici
+            upload_to_cpanel(local_path, filename)
         except ValueError as e:
             logger.error(f"Upload failed: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to upload article to server: {str(e)}")
@@ -602,7 +602,10 @@ async def create_article(
             update_sitemap(file_url)
             upload_to_cpanel(SITEMAP_FILE, "sitemap.xml")
             logger.info("✅ Sitemap updated and uploaded")
-            ping_google(f"{SITE_URL}/sitemap.xml")
+
+            # 💡 MODIFICAREA 2: Am adăugat "/noutati/" la ping
+            ping_google(f"{SITE_URL}/noutati/sitemap.xml")
+
             sitemap_updated = True
         except Exception as e:
             logger.warning(f"Sitemap update/ping failed (non-critical): {e}")
@@ -633,7 +636,6 @@ async def create_article(
                 os.remove(local_path)
             except:
                 pass
-
 
 @app.put("/articles/{article_id}")
 async def update_article(
@@ -792,8 +794,9 @@ async def create_article_json(
         logger.info(f"Article HTML created locally: {local_path}")
 
         try:
-            # 💡 MODIFICAT: Adaugă "noutati/" la calea de upload
-            upload_to_cpanel(local_path, f"noutati/{filename}")
+            # 💡 MODIFICAREA 1: Am scos "noutati/" de aici
+            # Deoarece UPLOAD_PATH este deja /noutati, încărcăm direct
+            upload_to_cpanel(local_path, filename)
             logger.info(f"Article HTML uploaded to server: {filename}")
         except ValueError as e:
             logger.error(f"Upload failed: {e}")
@@ -815,12 +818,12 @@ async def create_article_json(
         sitemap_updated = False
         try:
             update_sitemap(file_url)
-            # 💡 MODIFICAT: Se încarcă în rădăcină
+            # Se încarcă sitemap.xml în UPLOAD_PATH (care este /noutati/)
             upload_to_cpanel(SITEMAP_FILE, "sitemap.xml")
             logger.info("✅ Sitemap updated and uploaded")
 
-            # 🆕 PING GOOGLE SITEMAP
-            ping_google(f"{SITE_URL}/sitemap.xml")
+            # 💡 MODIFICAREA 2: Am adăugat "/noutati/" la ping
+            ping_google(f"{SITE_URL}/noutati/sitemap.xml")
 
             sitemap_updated = True
         except Exception as e:
@@ -855,7 +858,6 @@ async def create_article_json(
                 os.remove(local_path)
             except:
                 pass
-
 
 # ==================== RUN UVICORN ====================
 if __name__ == "__main__":
