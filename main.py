@@ -153,51 +153,29 @@ def download_from_ftp(remote_filename: str, local_path: str, remote_dir: str):
         if ftp: ftp.quit()
 
 # ==================== GOOGLE INDEXING ====================
-def request_google_indexing(url: str):
-    """
-    Request indexing for a URL using Google Indexing API
-
-    Args:
-        url: Full URL to index (e.g., https://frunza-asociatii.ro/noutati/article.html)
-
-    Returns:
-        bool: True if successful, False otherwise
-    """
+def request_google_indexing(url: str, type_: str = "URL_UPDATED"):
     try:
-        # Get credentials
         credentials = get_service_account_credentials()
         if not credentials:
             logger.warning("⚠️ Google Indexing API not configured - skipping")
             return False
 
-        # Build the service
         service = build('indexing', 'v3', credentials=credentials)
 
-        # Request indexing
         body = {
             "url": url,
-            "type": "URL_UPDATED"
+            "type": type_
         }
 
         response = service.urlNotifications().publish(body=body).execute()
-
         logger.info(f"✅ Google indexing requested successfully for: {url}")
         logger.debug(f"Google API response: {response}")
 
         return True
-
-    except HttpError as e:
-        # Handle specific Google API errors
-        if e.resp.status == 403:
-            logger.error(f"❌ Google API permission denied. Check service account permissions in Search Console")
-        elif e.resp.status == 429:
-            logger.error(f"❌ Google API rate limit exceeded. Try again later")
-        else:
-            logger.error(f"❌ Google Indexing API HTTP error ({e.resp.status}): {e.content}")
-        return False
     except Exception as e:
         logger.error(f"❌ Unexpected error requesting indexing: {e}")
         return False
+
 def get_service_account_credentials():
     """
     Build Google service account credentials from environment variables
