@@ -170,28 +170,73 @@ def request_google_indexing(url: str, type="URL_UPDATED"):
         logger.error(f"Google Indexing Error: {e}")
 
 # ==================== SITEMAP ====================
-def update_sitemap(new_url: str):
+def update_sitemap(new_url: str, changefreq: str = "weekly", priority: str = "0.8"):
+    """
+    Adaugă sau actualizează un URL în sitemap.xml pe server.
+    Se asigură că sitemap-ul include <loc>, <lastmod>, <changefreq> și <priority>.
+    """
     local_sitemap = os.path.join(GENERATED_DIR, "sitemap.xml")
     try:
-        download_from_ftp("sitemap.xml", local_sitemap, SITEMAP_UPLOAD_PATH_FTP)
-        if not os.path.exists(local_sitemap):
-            logger.info("Creating new sitemap.xml")
-            open(local_sitemap,"w").write("<?xml version='1.0' encoding='UTF-8'?><urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'></urlset>")
+        # 1. Conectare FTP și download sitemap existent
+        ftp = get_ftp_connection()
+        ftp.cwd(SITEMAP_UPLOAD_PATH_FTP)
+        try:
+            with open(local_sitemap, "wb") as f:
+                ftp.retrbinary("RETR sitemap.xml", f.write)
+        except:
+            # Dacă nu există sitemap, creăm unul gol
+            with open(local_sitemap, "w", encoding="utf-8") as f:
+                f.write('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>')
+
+        # 2. Parse XML
+        ET.register_namespace('', "http://www.sitemaps.org/schemas/sitemap/0.9")
         tree = ET.parse(local_sitemap)
         root = tree.getroot()
-        ns = {"s":"http://www.sitemaps.org/schemas/sitemap/0.9"}
-        exists = any(url.find("s:loc", ns).text == new_url for url in root.findall("s:url", ns))
-        if not exists:
+        ns = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+
+        # 3. Caută URL existent
+        found = False
+        for url in root.findall("s:url", ns):
+            loc = url.find("s:loc", ns)
+            if loc is not None and loc.text == new_url:
+                # Update lastmod, changefreq, priority
+                lastmod = url.find("s:lastmod", ns)
+                if lastmod is not None:
+                    lastmod.text = datetime.utcnow().strftime("%Y-%m-%d")
+                change = url.find("s:changefreq", ns)
+                if change is not None:
+                    change.text = changefreq
+                prio = url.find("s:priority", ns)
+                if prio is not None:
+                    prio.text = priority
+                found = True
+                break
+
+        # 4. Dacă nu există, adaugă URL nou
+        if not found:
             url_elem = ET.Element("url")
-            ET.SubElement(url_elem,"loc").text=new_url
-            ET.SubElement(url_elem,"lastmod").text=datetime.utcnow().strftime("%Y-%m-%d")
+            ET.SubElement(url_elem, "loc").text = new_url
+            ET.SubElement(url_elem, "lastmod").text = datetime.utcnow().strftime("%Y-%m-%d")
+            ET.SubElement(url_elem, "changefreq").text = changefreq
+            ET.SubElement(url_elem, "priority").text = priority
             root.append(url_elem)
+
+        # 5. Scrie și urcă sitemap înapoi pe FTP
         tree.write(local_sitemap, encoding="utf-8", xml_declaration=True)
         upload_file_ftp(local_sitemap, "sitemap.xml", SITEMAP_UPLOAD_PATH_FTP)
+
+        # 6. Ping Google
         requests.get(f"https://www.google.com/ping?sitemap={urllib.parse.quote(SITE_URL+'/sitemap.xml')}", timeout=5)
-        logger.info(f"Sitemap updated with {new_url}")
+        logger.info(f"Sitemap updated for {new_url}")
+        return True
     except Exception as e:
         logger.error(f"Sitemap Update Error: {e}")
+        return False
+    finally:
+        if ftp:
+            try: ftp.quit()
+            except: pass
+
 
 def remove_from_sitemap(target_url: str):
     local_sitemap = os.path.join(GENERATED_DIR, "sitemap.xml")
